@@ -194,8 +194,9 @@ La **Zero Trust Architecture** se basa en asegurar que no se confíe en ninguna 
 - **Cosign**: Firma de autenticidad de las imágenes Docker.
 - **Kyverno**: Auditoría y validación de configuraciones de seguridad y cumplimiento de las reglas de **Pod Security Standards (PSS)**.
 - **RBAC**: Uso de roles IAM para la segregación de permisos entre aplicaciones y deployments.
-- **WAF**: Aplicacion de reglas Waf al LoadBalancer general o a las instancias expuestas en el global load balancer. Limitando request, y proteccion a inyeccion de codigo, etc. Se podria agregar el uso de **Istio Authorization Policies** podria usarse como una especie de firewall
-**PSP** para la implementacion de PSP se uso Kyverno 
+- **WAF**: Aplicacion de reglas Waf al LoadBalancer general o a las instancias expuestas en el global load balancer. Limitando request, y proteccion a inyeccion de codigo, etc. Se podria agregar el uso de **Istio Authorization Policies** podria usarse como una especie de firewall.
+- **Audit**: Se podria usar a kyverno internamente, luego obtener el audit log del cluster exportado a prometheus, como asi tambien crear auditoria de los roles iam si estan segredados por aplicativo. 
+- **PSP** para la implementacion de PSP se uso Kyverno.
 
 		Obtener politicas de Kyverno:
 		$kubectl get cpol
