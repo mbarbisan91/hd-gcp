@@ -177,6 +177,13 @@ resource "helm_release" "prometheus" {
           type: LoadBalancer
           port: 80
           targetPort: 9090
+    grafana:
+      adminPassword: "grafito"
+      service:
+        enabled: true
+        type: LoadBalancer
+        port: 80 
+        targetPort: 3000           
     EOF
   ]
   depends_on = [
