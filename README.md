@@ -1,183 +1,189 @@
-Estructura del Repositorio
 
+# Estructura del Repositorio
+
+Este repositorio contiene la configuración y despliegue de una aplicación en Google Cloud Platform (GCP) usando Kubernetes, Terraform, ArgoCD, y herramientas como Istio, Prometheus y Grafana.
+
+## Estructura de Directorios
+
+```
 ./
-├─ app
-│  └─ Deployments de la aplicacion para ArgoCD
-	└─ Deployment sin canary, exponiendo el servicio por loadbalancer al 8080 con HPA 
-	└─ Deployment con canary, exponiendo el servicio en el 443 y con certificado auto firmado.
-├─ grafana
-│  └─ Dashboard de ejemplo para importar como json. En la instalacion estan los predefinidos
-	  User: admin, pass: grafito 
-└─ k8s-manifests
-   └─ configuracion del repo ArgoCD y configuraciones adicionales para el cluster
+├── app
+│   └── Deployments de la aplicación para ArgoCD
+│       ├── Deployment sin canary, exponiendo el servicio por LoadBalancer al puerto 8080 con HPA
+│       └── Deployment con canary, exponiendo el servicio en el puerto 443 con certificado autofirmado
+├── grafana
+│   └── Dashboard de ejemplo para importar como JSON. En la instalación están los predefinidos.
+│       - Usuario: admin, Contraseña: grafito
+└── k8s-manifests
+    └── Configuración del repositorio ArgoCD y configuraciones adicionales para el cluster
+    ├── Administration-apps.tf
+    │   └── Instalación de herramientas de administración del cluster (Prometheus, Grafana, Vault, Kyverno, Istio).
+    ├── Artifactory.tf
+    │   └── Creación de Artifactory para alojar imágenes Docker.
+    ├── Custom-metric.tf
+    │   └── Métrica custom para el HPA del pod de ejemplo.
+    ├── Docker.tf
+    │   └── Creación de la imagen Docker local y push al Artifactory.
+    ├── Dockerfile
+    │   └── Configuración para el build de la imagen de la aplicación.
+    ├── Main.tf
+    │   └── Configuración general de los clusters GKE.
+    ├── Networking.tf
+    │   └── Creación de VPC y subnets para los clusters.
+    ├── Outputs.tf
+    │   └── Outputs de los objetos creados (endpoint de los clusters, CA, URL Artifactory).
+    ├── pipelines-examples-(jenkins/github).txt
+    │   └── Prototipo de pipelines.
+    ├── Providers.tf
+    │   └── Versiones y requerimientos necesarios.
+    ├── Terraform.tfvars
+    │   └── Variables y habilitación de la instalación de objetos.
+    ├── Variables.tf
+    │   └── Variables de la configuración.
+```
 
-	Administration-apps.tf
-		Instalacion de herramientas de administracion del cluster (Prometheus, Grafana, Vault, Kyverno, Istio).
-	Artifactory.tf 
-		Creacion de artifactory para alojar imagenes docker.
-	Custom-metric.tf
-		Metrica custom para el HPA del pod de ejemplo.
-	Docker.tf 
-		Creacion de la imagen Docker local y push al Artifactory.
-	Dockerfile
-		Configuracion para el build de la imagen de la aplicacion. 
-	Main.tf 
-		COnfiguracion general de los clusters GKE.
-	Networking.tf
-		Creacion de VPC y de subnets para los clusters.
-	Outputs.tf
-		Output de los objetos creados (endpoint de los clusters, CA, url Artifactory)
-	pipelines-examples-(jenkins/github).txt
-		Prototipo de pipelines
-	Providers.tf
-		Versiones y requerimientos necesarios.
-	Terraform.tfvars 
-		Variables y habilitar instalacion de objetos.
-	Variables.tf 
-		Variables de la configuracion. 
+## Instalación
 
-Instalacion: 
-	Clonar el repo
-		$ git clone https://github.com/mbarbisan91/hd-gcp.git
-		$ cd hd-gcp
+Para poner en marcha este repositorio, sigue los pasos a continuación:
 
-	Inicializar terraform
-		$ terraform init
+### 1. Clonar el Repositorio
 
-	Modificar las variables con las propias en variables.tf
-		$ terraform apply
+Clona el repositorio en tu máquina local:
 
-	Obtener credenciales del cluster localmente para poder ejecutar kubectl localmente
-		$ gcloud container clusters get-credentials demo-europe --region europe-west2-a
+```bash
+$ git clone https://github.com/mbarbisan91/hd-gcp.git
+$ cd hd-gcp
+```
 
-	Aplicar crds necesarios para ArgoCD, dentro de la consola GCP o de forma local: 
-		$ kubectl apply -k github.com/argoproj/argo-rollouts/manifests/crds
-	
-	Copiar el tf del respositorio 
-		$ cp k8s-manifests/gitrepo.tf . 
+### 2. Inicializar Terraform
 
-	Ejecutar nuevamente el terraform para que cree el ArgoCD repo 
-		$ terraform apply
+Inicializa Terraform para descargar los proveedores necesarios:
 
-	Version sin canary y con HPA, funcionando en el puerto 8080
-		Version con canary no funciona(necesita creacion de ingress, cert e ingress)
+```bash
+$ terraform init
+```
 
-	Obtener password de ArgoCD:
-	kubectl -n argocd get secret argocd-initial-admin-secret \
-          -o jsonpath="{.data.password}" | base64 -d; echo
+### 3. Modificar Variables
 
-Usuarios/Password fueron creados solo con el fin de la prueba y la facilidad de uso. 
+Abre el archivo `variables.tf` y modifica las variables con las configuraciones específicas de tu entorno. Luego aplica la configuración:
 
-Repositorio de aplicacion:
-	https://github.com/mbarbisan91/hd-gcp/app
+```bash
+$ terraform apply
+```
 
-Respuesta por puntos: 
+### 4. Obtener Credenciales del Cluster
 
-![Texto alternativo](./arquitectura.png)
+Obtén las credenciales de tu cluster para poder ejecutar `kubectl` localmente:
 
-	1 - Se crea una VPC compartida entre dos subsnets (una subnet por cluster)
-		Se crean dos clusters en regiones diferentes y zonas diferentes para cumplir HA
-	
-		Se realiza el deploy de ArgoCD (este instalaria todos los servicios necesarios desde los repositorios involucrado, 
-		como prometheus, grafana, prometheus adapter, istio, etc)
+```bash
+$ gcloud container clusters get-credentials demo-europe --region europe-west2-a
+```
 
-		RTO y RPO se calculara en cuanto tarda Terraform en recrear los objetos
+### 5. Aplicar CRDs para ArgoCD
 
-	  RTO (Recovery Time Objective): 1 hour (time to restore the application after a failure).
-	  RPO (Recovery Point Objective): 5 minutes (maximum acceptable data loss).
+Aplica los CRDs necesarios para ArgoCD desde la consola GCP o de forma local:
 
-Creacion del repositorio de docker (artifactory)
-Creacion de la imagen inicial de base de la app 
+```bash
+$ kubectl apply -k github.com/argoproj/argo-rollouts/manifests/crds
+```
 
-Se sincronizara el repositorio de los manifiestos respectivos a la app y aplicaciones atraves de ArgoCD 
+### 6. Copiar el Archivo de GitRepo
 
-RTO/RPO: 
-  El deployment del cluster con la aplicacion funcionando son unos 20 minutos, de comienzo a fin. Podriamos usarlo de referencia. 
+Copia el archivo `gitrepo.tf` desde el repositorio:
 
+```bash
+$ cp k8s-manifests/gitrepo.tf .
+```
 
-	2 - ![Texto alternativo](./pipeline.png)
+### 7. Ejecutar Terraform para Crear ArgoCD
 
-		Dejo algunos ejemplos prototipo de codigo: 
-			pipeline-example-github-actions 
-			pipeline-example-jenkins-groovy
+Ejecuta nuevamente Terraform para crear el repositorio de ArgoCD:
 
-		Podriamos usar ArgoCD para la implementacion de CI/CD o la herramienta de google 
-		Canary deployment con un yaml de kubernetes 
-		Rollback en el caso de que la applicacion en el canary no cumpla un X de request y tiempo de respuesta 
+```bash
+$ terraform apply
+```
 
-		Se creara un self-certificate para exponer la aplicacion 
+### 8. Configuración de ArgoCD
 
-		Herramientas para CI/CD: Jenkins, GitLab CI, codebuild, github actions: 
+Para obtener la contraseña de acceso a ArgoCD:
 
-		Push del codigo --> webhook hacia la app de CI/CD -> pipeline: 
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+```
 
-		pull del codigo nuevo 
-		copilacion de la app 
-		creacion de la app
-		push a la registry/artifact
-		deployment con canary con la nueva version en cluster GKE
-			Si tenemos istio se podria usar el balanceo de carga por porcentaje de request accepted (VirtualService/DestinationRule) 
+**Nota**: Los usuarios y contraseñas fueron creados solo para facilitar la prueba.
 
-		Servicio de app por puerto 443 se puede realizar con un loadbalancer service escuchando el puerto 443 redirigiendolo al 8080 de la app sin certicado. (certificado autofirmado del cluster)
+Repositorio de la aplicación: [hd-gcp/app](https://github.com/mbarbisan91/hd-gcp/app)
 
-		Formato seguro con service mesh + mtls. (istio), con un ingress exponiendo el servicio con certificado y mirando el backend del service
+---
 
-	3 
-		Zero Trust Arquitecture: 
-			Se podria usar Istio (controlar ingress y egress de las apps por separado) o cualquier service mesh para Mtls asegurando la comunicacion entre los pods/servicios asegurando el uso de cifrado. 
-			Cosign para la firma de autenticidad de las imagenes dockers y de la cadena de creacion 
-			Para el adminition controller se puede usar Kyverno para validar y auditar configuraciones 
-			Kyverno tambien cumpliria con las reglas de Pod Security Standards (PSS):  
+## Arquitectura
 
-		Para la seguridad de los secrets se podria usar: 
-			GCP Secret Manager, Vault
+### Descripción
 
-		Comunicacion entre nodos securizada en los parametros de creacion del cluster, nodos confidenciales, redes privadas, etc. 
+La arquitectura propuesta se basa en la creación de una VPC compartida con subnets separadas por cluster para asegurar alta disponibilidad (HA). Los despliegues se realizan mediante **ArgoCD**, que instalará todos los servicios necesarios desde los repositorios correspondientes como **Prometheus**, **Grafana**, **Prometheus Adapter**, **Istio**, entre otros.
 
-		RBAC: que aplicacion tenga un rol IAM asociado con permisos especificos 
+#### Recovery Time Objective (RTO) y Recovery Point Objective (RPO)
 
-		Webhook: para la autorizacion de automatizacion y aplicaciones de automatizacion, robots, etc. 
+- **RTO (Recovery Time Objective)**: 1 hora (Tiempo para restaurar la aplicación después de una falla).
+- **RPO (Recovery Point Objective)**: 5 minutos (Pérdida máxima de datos aceptable).
 
-		Istio Authorization Policies - Podria usarse como una especie de firewall
-		
-		Para la implementacion de PSP se uso Kyverno 
+#### Pasos
 
-		Obtener politicas de Kyverno:
-		$kubectl get cpol
+1. Se crea una **VPC** compartida entre dos subnets, una por cada cluster.
+2. Se despliegan dos clusters en **regiones y zonas diferentes** para cumplir con HA.
+3. **ArgoCD** instala todos los servicios necesarios, como **Prometheus**, **Grafana**, **Vault**, **Istio**, etc.
+4. El tiempo estimado de despliegue es de aproximadamente 20 minutos.
 
-		Politicas aplicadas por defecto: 
+---
 
-		NAME                             ADMISSION   BACKGROUND   READY   AGE     MESSAGE
-		disallow-capabilities            true        true         True    5m17s   Ready
-		disallow-host-namespaces         true        true         True    5m17s   Ready
-		disallow-host-path               true        true         True    5m17s   Ready
-		disallow-host-ports              true        true         True    5m17s   Ready
-		disallow-host-process            true        true         True    5m17s   Ready
-		disallow-privileged-containers   true        true         True    5m17s   Ready
-		disallow-proc-mount              true        true         True    5m17s   Ready
-		disallow-selinux                 true        true         True    5m17s   Ready
-		restrict-apparmor-profiles       true        true         True    5m17s   Ready
-		restrict-seccomp                 true        true         True    5m17s   Ready
-		restrict-sysctls                 true        true         True    5m17s   Ready
+## Pipeline de CI/CD
 
+### Descripción
 
-Mejoras a la resolucion: 
+Se incluyen ejemplos de código de pipelines para **Jenkins** y **GitHub Actions**. Estos pipelines permiten automatizar el proceso de construcción, prueba y despliegue de la aplicación.
 
-	Cantidad de nodos impares para la redundancia 3 o 5 (se uso el tier free para las pruebas)
+- **Deployment Canary**: Implementación gradual de nuevas versiones de la aplicación.
+- **Rollback**: Si la versión canary no cumple con las expectativas de tráfico o tiempos de respuesta, se realiza un rollback automáticamente.
 
-	Federar los clusters con Kubernetes Federation o usar Fleet o un Global load balancer, con un loadbalancer general por cada cluster con redireccion interna. 
+### Ejemplos de Pipelines
 
-	Restaria crear un dns para la aplicacion y exponer el servicio por el 443
-	Crear un ingress con el certificado refiriendose al service de la app
+- `pipeline-example-github-actions`
+- `pipeline-example-jenkins-groovy`
 
-	Usar IAM por cada aplicativo/deployment para la segregacion de permisos y seguridad
+El uso de **Istio** permite gestionar el tráfico y balanceo de carga mediante un **VirtualService** y **DestinationRule**, lo cual es útil para control de tráfico y despliegue en canary.
 
-	Creacion de perfil IAM con permisos para usar KMS en gcp para que vault funcione
-		Aprovicionarle storage para raft
-	
-	Habilitar Istio con Mtls 
+---
 
-	Habilar Fleet o Anthos para la sincronizacion/federacion de los clusters 
+## Zero Trust Architecture
 
-	Aplicacion de reglas Waf al LoadBalancer general o a las instancias expuestas en el
+La **Zero Trust Architecture** se basa en asegurar que no se confíe en ninguna entidad, ya sea interna o externa, sin verificar su identidad.
 
+### Seguridad
+
+- **mTLS**: Usando **Istio** o cualquier otro service mesh para asegurar la comunicación entre los pods mediante cifrado.
+- **Cosign**: Firma de autenticidad de las imágenes Docker.
+- **Kyverno**: Auditoría y validación de configuraciones de seguridad y cumplimiento de las reglas de **Pod Security Standards (PSS)**.
+- **RBAC**: Uso de roles IAM para la segregación de permisos entre aplicaciones y deployments.
+
+### Gestión de Secrets
+
+- **GCP Secret Manager** o **Vault** para gestionar secrets y otros valores sensibles.
+- **Kubernetes RBAC** para controlar el acceso a los secretos según los roles.
+
+---
+
+## Mejoras a la Resolución
+
+### Propuestas
+
+1. **Redundancia**: Usar un número impar de nodos (3 o 5 nodos) para mayor disponibilidad.
+2. **Federación de Clusters**: Usar **Kubernetes Federation**, **Fleet**, o un **Global Load Balancer**.
+3. **DNS**: Crear un **DNS** para la aplicación y exponer el servicio en el puerto 443 con certificado válido.
+4. **IAM**: Implementar un control de acceso más fino usando **IAM** por cada aplicación o deployment.
+5. **Vault**: Crear un perfil IAM con permisos para usar **KMS** y gestionar secretos de manera segura.
+6. **Istio**: Habilitar **Istio** con **mTLS** para asegurar la comunicación entre servicios.
+
+---
+
+¡Gracias por usar este repositorio! Si tienes alguna pregunta o sugerencia, no dudes en abrir un *issue* o contactar con el autor.
