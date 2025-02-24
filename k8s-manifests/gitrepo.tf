@@ -1,3 +1,10 @@
+#resource "null_resource" "create_crds_argo" {
+#    provisioner "local-exec" {
+#    command = <<EOT
+#      kubectl apply -k github.com/argoproj/argo-rollouts/manifests/crds
+#    EOT
+#  }
+#}
 resource "kubectl_manifest" "argocd_application" {
   yaml_body = <<YAML
 apiVersion: argoproj.io/v1alpha1
