@@ -132,7 +132,6 @@ resource "helm_release" "kyverno_policies" {
   ]
 }
 
-
 resource "helm_release" "grafana" {
   count = var.install_grafana ? 1 : 0
   #provider         = kubernetes.cluster
@@ -140,8 +139,9 @@ resource "helm_release" "grafana" {
   namespace        = "monitoring"
   repository       = "https://grafana.github.io/helm-charts"
   chart            = "grafana"
+  version          = "8.10.1"
   create_namespace = true
-
+  
   values = [
     <<-EOT
     adminPassword: "grafito"

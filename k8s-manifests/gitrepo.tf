@@ -1,6 +1,6 @@
 resource "kubectl_manifest" "argocd_application" {
   yaml_body = <<YAML
-apiVersion: argoproj.io/v1
+apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: ${var.app_name}
