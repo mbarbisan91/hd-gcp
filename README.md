@@ -44,6 +44,15 @@ Este repositorio contiene la configuración y despliegue de una aplicación en G
 
 ## Instalación
 
+       Resumen de objetos a crear: 
+              Repositorio Artifactory
+              Build inicial docker
+              VPC 
+              2 subnets, una por cluster
+              2 Clusters Kubernetes
+                     └──  Se instalar apps de administracion via terraform/helm
+
+
 Para poner en marcha este repositorio, sigue los pasos a continuación:
 
 ### 1. Clonar el Repositorio
@@ -120,7 +129,7 @@ ArgoCD:
     - Usuario: admin, Contraseña: Se obtiene via cli kubernetes previamente descripto
 ---
 
-## Arquitectura
+1 - ## Arquitectura
 ![Texto alternativo](./arquitectura.png)
 ### Descripción
 
@@ -140,42 +149,74 @@ La creacion hasta que la aplicacion este funcionando (ejecucion de terraform y c
 
 ---
 
-## Pipeline de CI/CD
+2 - ## Pipeline de CI/CD
 ![Texto alternativo](./pipeline.png)
 ### Descripción
 
 Se incluyen ejemplos de código de pipelines para **Jenkins** y **GitHub Actions**. Estos pipelines permiten automatizar el proceso de construcción, prueba y despliegue de la aplicación.
 
-- **Deployment Canary**: Implementación gradual de nuevas versiones de la aplicación.
-- **Rollback**: Si la versión canary no cumple con las expectativas de tráfico o tiempos de respuesta, se realiza un rollback automáticamente.
+		Flujo de un posible pipeline: 
 
+		Herramientas para CI/CD (Jenkins, GitLab CI, codebuild, github actions): 
+		Push del codigo developer --> webhook hacia la app de CI/CD -> pipeline: 
+		Pull del codigo nuevo 
+		Copilacion de la app 
+		Creacion de la app y imagen docker en worker del CI/CD
+		Push a la registry/artifact
+		Deployment con canary con la nueva version en cluster GKE
+			(Si tenemos istio se podria usar el balanceo de carga por porcentaje de request accepted (VirtualService/DestinationRule)
+			Rollback en el caso de que la applicacion en el canary no cumpla un X de request y tiempo de respuesta
+			(Evaluacion de codigo seguridad, funcionalidad, calidad.)
+		Deployment final de la aplicacion. 
+
+		*En caso de tener todos lo ambientes (dev,qa,prod) deberian evaluarse calidad de codigo, seguridad y pruebas de QA/Testing, antes de pasar de ambiente.  
+  
 ### Ejemplos de Pipelines
 
 - `pipeline-example-github-actions`
 - `pipeline-example-jenkins-groovy`
 
-El uso de **Istio** permite gestionar el tráfico y balanceo de carga mediante un **VirtualService** y **DestinationRule**, lo cual es útil para control de tráfico y despliegue en canary.
-
 ---
 
-## Zero Trust Architecture
+3 - ## Zero Trust Architecture
 
 La **Zero Trust Architecture** se basa en asegurar que no se confíe en ninguna entidad, ya sea interna o externa, sin verificar su identidad.
 
 ### Seguridad
 
 - **mTLS**: Usando **Istio** o cualquier otro service mesh para asegurar la comunicación entre los pods mediante cifrado.
+- **GKE**: Clustes con redes privadas, o que sean del tipo confidencial. 
 - **Cosign**: Firma de autenticidad de las imágenes Docker.
 - **Kyverno**: Auditoría y validación de configuraciones de seguridad y cumplimiento de las reglas de **Pod Security Standards (PSS)**.
 - **RBAC**: Uso de roles IAM para la segregación de permisos entre aplicaciones y deployments.
+- **WAF**: Aplicacion de reglas Waf al LoadBalancer general o a las instancias expuestas en el global load balancer. Limitando request, y proteccion a inyeccion de codigo, etc. Se podria agregar el uso de **Istio Authorization Policies** podria usarse como una especie de firewall
+**PSP** para la implementacion de PSP se uso Kyverno 
 
+		Obtener politicas de Kyverno:
+		$kubectl get cpol
+
+		Politicas aplicadas por defecto aplicadas: 
+
+		NAME                             ADMISSION   BACKGROUND   READY   AGE     MESSAGE
+		disallow-capabilities            true        true         True    5m17s   Ready
+		disallow-host-namespaces         true        true         True    5m17s   Ready
+		disallow-host-path               true        true         True    5m17s   Ready
+		disallow-host-ports              true        true         True    5m17s   Ready
+		disallow-host-process            true        true         True    5m17s   Ready
+		disallow-privileged-containers   true        true         True    5m17s   Ready
+		disallow-proc-mount              true        true         True    5m17s   Ready
+		disallow-selinux                 true        true         True    5m17s   Ready
+		restrict-apparmor-profiles       true        true         True    5m17s   Ready
+		restrict-seccomp                 true        true         True    5m17s   Ready
+		restrict-sysctls                 true        true         True    5m17s   Ready
+  
 ### Gestión de Secrets
 
 - **GCP Secret Manager** o **Vault** para gestionar secrets y otros valores sensibles.
 
 ---
 
-## Mejoras a la Resolución
+4- ## Mejoras a la Resolución
 
 ### Propuestas
 
