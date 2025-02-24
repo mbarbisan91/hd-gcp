@@ -172,7 +172,6 @@ La **Zero Trust Architecture** se basa en asegurar que no se confíe en ninguna 
 ### Gestión de Secrets
 
 - **GCP Secret Manager** o **Vault** para gestionar secrets y otros valores sensibles.
-- **Kubernetes RBAC** para controlar el acceso a los secretos según los roles.
 
 ---
 
