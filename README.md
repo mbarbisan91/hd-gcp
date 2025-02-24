@@ -13,7 +13,7 @@ Este repositorio contiene la configuración y despliegue de una aplicación en G
 │       └── Deployment con canary, exponiendo el servicio en el puerto 443 con certificado autofirmado
 ├── grafana
 │   └── Dashboard de ejemplo para importar como JSON. En la instalación están los predefinidos.
-│       - Usuario: admin, Contraseña: grafito
+       
 └── k8s-manifests
     └── Configuración del repositorio ArgoCD y configuraciones adicionales para el cluster
     ├── Administration-apps.tf
@@ -73,7 +73,7 @@ $ terraform apply
 
 ### 4. Obtener Credenciales del Cluster
 
-Obtén las credenciales de tu cluster para poder ejecutar `kubectl` localmente:
+Obtén las credenciales de tu cluster para poder ejecutar `kubectl` localmente (es el cluster por defecto):
 
 ```bash
 $ gcloud container clusters get-credentials demo-europe --region europe-west2-a
@@ -111,22 +111,25 @@ Para obtener la contraseña de acceso a ArgoCD:
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
 ```
 
+Repositorio de la aplicación: [hd-gcp/app]([https://github.com/mbarbisan91/hd-gcp/app](https://github.com/mbarbisan91/hd-gcp/tree/master/app))
+
 **Nota**: Los usuarios y contraseñas fueron creados solo para facilitar la prueba.
-
-Repositorio de la aplicación: [hd-gcp/app](https://github.com/mbarbisan91/hd-gcp/app)
-
+Grafana:    
+    - Usuario: admin, Contraseña: grafito
+ArgoCD: 
+    - Usuario: admin, Contraseña: Se obtiene via cli kubernetes previamente descripto
 ---
 
 ## Arquitectura
-
+![Texto alternativo](./arquitectura.png)
 ### Descripción
 
-La arquitectura propuesta se basa en la creación de una VPC compartida con subnets separadas por cluster para asegurar alta disponibilidad (HA). Los despliegues se realizan mediante **ArgoCD**, que instalará todos los servicios necesarios desde los repositorios correspondientes como **Prometheus**, **Grafana**, **Prometheus Adapter**, **Istio**, entre otros.
+La arquitectura propuesta se basa en la creación de una VPC compartida con subnets separadas por cluster para asegurar alta disponibilidad (HA).
+Los despliegues se realizan mediante **ArgoCD**, que instalará todos los servicios necesarios desde los repositorios correspondientes como **Prometheus**, **Grafana**, **Prometheus Adapter**, **Istio**, entre otros.
 
 #### Recovery Time Objective (RTO) y Recovery Point Objective (RPO)
 
-- **RTO (Recovery Time Objective)**: 1 hora (Tiempo para restaurar la aplicación después de una falla).
-- **RPO (Recovery Point Objective)**: 5 minutos (Pérdida máxima de datos aceptable).
+La creacion hasta que la aplicacion este funcionando (ejecucion de terraform y configuraciones posteriores) son alrededor de 20 minutos, con la aplicacion corriendo en un solo cluster. Se podria tomar de referencia para estimar el RTO/RPO pero seria injusto dado que no es una arquitectura redundante como tal.
 
 #### Pasos
 
@@ -138,7 +141,7 @@ La arquitectura propuesta se basa en la creación de una VPC compartida con subn
 ---
 
 ## Pipeline de CI/CD
-
+![Texto alternativo](./pipeline.png)
 ### Descripción
 
 Se incluyen ejemplos de código de pipelines para **Jenkins** y **GitHub Actions**. Estos pipelines permiten automatizar el proceso de construcción, prueba y despliegue de la aplicación.
@@ -183,7 +186,6 @@ La **Zero Trust Architecture** se basa en asegurar que no se confíe en ninguna 
 4. **IAM**: Implementar un control de acceso más fino usando **IAM** por cada aplicación o deployment.
 5. **Vault**: Crear un perfil IAM con permisos para usar **KMS** y gestionar secretos de manera segura.
 6. **Istio**: Habilitar **Istio** con **mTLS** para asegurar la comunicación entre servicios.
+7. **Terraform**: La modularidad del codigo podria mejorarse en modulos.
 
 ---
-
-¡Gracias por usar este repositorio! Si tienes alguna pregunta o sugerencia, no dudes en abrir un *issue* o contactar con el autor.
