@@ -1,0 +1,99 @@
+pipeline {
+    agent any
+    
+    environment {
+        IMAGE_NAME = 'devops-challenge'
+        GCP_PROJECT_ID = credentials('GCP_PROJECT_ID')
+        GCP_REGION = credentials('GCP_REGION')
+        GCP_ZONE = credentials('GCP_ZONE')
+        GKE_CLUSTER_NAME = credentials('GKE_CLUSTER_NAME')
+        GCR_REGISTRY = credentials('GCR_REGISTRY')
+        K8S_NAMESPACE = credentials('K8S_NAMESPACE')
+    }
+    
+    triggers {
+        githubPush()
+    }
+    
+    stages {
+        stage('Checkout Repository') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Setup Go') {
+            steps {
+                sh 'go version'
+            }
+        }
+        
+        stage('Install Dependencies') {
+            steps {
+                sh 'go mod tidy'
+            }
+        }
+        
+        stage('Build Go Application') {
+            steps {
+                sh 'go build -o server ./app/server.go'
+            }
+        }
+        
+        stage('Run Tests') {
+            steps {
+                sh 'go test ./...'
+            }
+        }
+        
+        stage('Authenticate with Google Cloud') {
+            steps {
+                withCredentials([file(credentialsId: 'GCP_SA_KEY', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+                    sh 'gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS'
+                }
+            }
+        }
+        
+        stage('Build and Push Docker Image') {
+            steps {
+                script {
+                    def imageUri = "$GCR_REGISTRY/$GCP_PROJECT_ID/$IMAGE_NAME:latest"
+                    sh "gcloud auth configure-docker $GCR_REGISTRY"
+                    sh "docker build -t $imageUri ."
+                    sh "docker push $imageUri"
+                }
+            }
+        }
+        
+        stage('Deploy Canary Release') {
+            steps {
+                script {
+                    sh "gcloud container clusters get-credentials $GKE_CLUSTER_NAME --zone $GCP_ZONE --project $GCP_PROJECT_ID"
+                    sh "kubectl apply -f k8s/canary-deployment.yaml"
+                    sh "kubectl rollout status deployment/devops-challenge-canary"
+                    sleep 60
+                    def canaryPods = sh(script: "kubectl get pods -l app=devops-challenge-canary -o jsonpath='{.items[*].status.phase}'", returnStdout: true).trim()
+                    if (canaryPods.contains('Running')) {
+                        echo "Canary deployment successful, rolling out full deployment"
+                        sh "kubectl apply -f k8s/deployment.yaml"
+                    } else {
+                        echo "Canary deployment failed, rolling back"
+                        sh "kubectl rollout undo deployment/devops-challenge-canary"
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy Service') {
+            steps {
+                sh 'kubectl apply -f k8s/service.yaml'
+            }
+        }
+        
+        stage('Set Environment Variables') {
+            steps {
+                sh "kubectl set env deployment/devops-challenge ENV_VAR_1=${ENV_VAR_1} ENV_VAR_2=${ENV_VAR_2}"
+            }
+        }
+    }
+}

@@ -1,0 +1,90 @@
+name: CI/CD to GKE
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: devops-challenge
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ secrets.GCP_REGION }}
+  GCP_ZONE: ${{ secrets.GCP_ZONE }}
+  GKE_CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
+  GCR_REGISTRY: ${{ secrets.GCR_REGISTRY }}
+  K8S_NAMESPACE: ${{ secrets.K8S_NAMESPACE }}
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.21
+
+      - name: Install dependencies
+        run: go mod tidy
+
+      - name: Build Go application
+        run: go build -o server ./app/server.go
+
+      - name: Run Tests
+        run: go test ./...
+
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker $GCR_REGISTRY
+
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE_URI="$GCR_REGISTRY/$GCP_PROJECT_ID/$IMAGE_NAME:latest"
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
+        env:
+          IMAGE_URI: ${{ secrets.GCR_REGISTRY }}/${{ secrets.GCP_PROJECT_ID }}/devops-challenge:latest
+
+  deploy:
+    name: Deploy to GKE with Canary and Rollback
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Get GKE Cluster Credentials
+        run: |
+          gcloud container clusters get-credentials $GKE_CLUSTER_NAME --zone $GCP_ZONE --project $GCP_PROJECT_ID
+
+      - name: Deploy Canary Release
+        run: |
+          kubectl apply -f k8s/canary-deployment.yaml
+          kubectl rollout status deployment/devops-challenge-canary
+          sleep 60
+          CANARY_PODS=$(kubectl get pods -l app=devops-challenge-canary -o jsonpath='{.items[*].status.phase}')
+          if echo "$CANARY_PODS" | grep -q "Running"; then
+            echo "Canary deployment successful, rolling out full deployment"
+            kubectl apply -f k8s/deployment.yaml
+          else
+            echo "Canary deployment failed, rolling back"
+            kubectl rollout undo deployment/devops-challenge-canary
+          fi
+
+      - name: Deploy Service
+        run: kubectl apply -f k8s/service.yaml
+
+      - name: Set Environment Variables
+        run: |
+          kubectl set env deployment/devops-challenge ENV_VAR_1=${{ secrets.ENV_VAR_1 }} ENV_VAR_2=${{ secrets.ENV_VAR_2 }}

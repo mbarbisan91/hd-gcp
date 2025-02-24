@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1
+kind: Application
+metadata:
+  name: my-go-app
+  namespace: argocd
+spec:
+  project: "default"
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: "default"
+  source:
+    repoURL: https://github.com/mbarbisan91/hd-gcp
+    targetRevision: master
+    path: app
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - Validate=true

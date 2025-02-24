@@ -1,0 +1,91 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: my-go-app
+  labels:
+    app: my-go-app
+spec:
+  replicas: 3 
+  selector:
+    matchLabels:
+      app: my-go-app
+  strategy:
+    canary:
+      steps:
+        - setWeight: 10
+        - pause: {}
+        - setWeight: 30
+        - pause: {}
+        - setWeight: 50
+        - pause: {}
+        - setWeight: 100
+      maxSurge: 1
+      maxUnavailable: 0
+      analysis:
+        interval: 1m
+        maxInterval: 5m
+        thresholds:
+          - comparison: "lt"
+            value: 0.5
+            metricName: successRate
+            count: 3
+      progressDeadlineSeconds: 1800
+  template:
+    metadata:
+      labels:
+        app: my-go-app
+    spec:
+      containers:
+        - name: my-go-app
+          image: europe-docker.pkg.dev/my-holded-test-project/my-go-app/my-go-app:latest
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-go-app
+spec:
+  selector:
+    app: my-go-app
+  ports:
+    - protocol: TCP
+      port: 443
+      targetPort: 8080  
+  type: LoadBalancer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-go-app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  rules:
+  - host: "my-go-app.example.com"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: my-go-app
+            port:
+              number: 443
+  tls:
+  - hosts:
+    - "my-go-app.example.com"
+    secretName: my-go-app-tls
