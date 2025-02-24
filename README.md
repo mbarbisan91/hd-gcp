@@ -120,13 +120,15 @@ Para obtener la contraseña de acceso a ArgoCD:
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
 ```
 
-Repositorio de la aplicación: [hd-gcp/app]([https://github.com/mbarbisan91/hd-gcp/app](https://github.com/mbarbisan91/hd-gcp/tree/master/app))
+Repositorio de la aplicación: ([https://github.com/mbarbisan91/hd-gcp/app](https://github.com/mbarbisan91/hd-gcp/tree/master/app))
 
 **Nota**: Los usuarios y contraseñas fueron creados solo para facilitar la prueba.
 Grafana:    
     - Usuario: admin, Contraseña: grafito
+    
 ArgoCD: 
     - Usuario: admin, Contraseña: Se obtiene via cli kubernetes previamente descripto
+    
 ---
 
 1 - ## Arquitectura
