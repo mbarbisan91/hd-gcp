@@ -130,7 +130,9 @@ ArgoCD:
 ---
 
 1 - ## Arquitectura
+
 ![Texto alternativo](./arquitectura.png)
+
 ### Descripción
 
 La arquitectura propuesta se basa en la creación de una VPC compartida con subnets separadas por cluster para asegurar alta disponibilidad (HA).
@@ -150,9 +152,10 @@ La creacion hasta que la aplicacion este funcionando (ejecucion de terraform y c
 ---
 
 2 - ## Pipeline de CI/CD
-![Texto alternativo](./pipeline.png)
-### Descripción
 
+![Texto alternativo](./pipeline.png)
+
+### Descripción
 Se incluyen ejemplos de código de pipelines para **Jenkins** y **GitHub Actions**. Estos pipelines permiten automatizar el proceso de construcción, prueba y despliegue de la aplicación.
 
 		Flujo de un posible pipeline: 
